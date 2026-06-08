@@ -1,0 +1,375 @@
+// ═══════════════════════════════════════════════════════════════════════════
+//  Apps Script — Revisão Prova Paulista | Atividade de Ciências – 6º Ano
+//  E.E. Profª Wanda MasacagNi de Sá (WMS) — SEDUC-SP
+//
+//  ⚠️  SUBSTITUA WMS_SPREADSHEET_ID pelo ID da sua nova planilha Google.
+//
+//  ABAS CRIADAS AUTOMATICAMENTE:
+//    • "6oA respostas WMS" — 6º Ano A
+//    • "6oC respostas WMS" — 6º Ano C
+//
+//  FUNCIONALIDADES:
+//    • Recebe respostas das 10 questões (Q21–Q30) via JSONP GET
+//    • Calcula acertos e nota (0–10) no servidor (não confia no cliente)
+//    • Colore células por acerto/erro
+//    • Envia e-mail de resultado ao aluno no e-mail institucional
+//
+//  COMO PUBLICAR:
+//    1. Abra o Apps Script vinculado à planilha
+//    2. Cole este código substituindo o conteúdo existente
+//    3. Clique em "Implantar" > "Nova implantação"
+//    4. Tipo: "Aplicativo da Web"
+//       Executar como: "Eu (seu e-mail)"
+//       Quem tem acesso: "Qualquer pessoa"
+//    5. Copie a URL gerada e cole em SCRIPT_URL no arquivo HTML
+//    ⚠️  Após qualquer edição futura, sempre crie uma NOVA VERSÃO ao reimplantar.
+// ═══════════════════════════════════════════════════════════════════════════
+
+var WMS_SPREADSHEET_ID = "COLE_AQUI_O_ID_DA_SUA_PLANILHA";
+
+// Gabarito das questões 21–30 (mapeadas como q1–q10 no payload)
+var WMS_GABARITO = {
+  q1:  "B",  // Q21 – Biosfera
+  q2:  "C",  // Q22 – Oxigênio
+  q3:  "D",  // Q23 – Camada de Ozônio
+  q4:  "A",  // Q24 – Estados físicos da água
+  q5:  "D",  // Q25 – Vaporização
+  q6:  "A",  // Q26 – Evapotranspiração
+  q7:  "C",  // Q27 – Ciclo da água
+  q8:  "B",  // Q28 – Intemperismo
+  q9:  "D",  // Q29 – Inundações / bueiros
+  q10: "C"   // Q30 – Substância pura simples
+};
+
+var WMS_TOTAL_QUESTOES = 10;
+
+var WMS_QUESTAO_NOMES = {
+  q1:  "Q21 – Biosfera",
+  q2:  "Q22 – Oxigênio na atmosfera",
+  q3:  "Q23 – Camada de Ozônio",
+  q4:  "Q24 – Estados físicos da água",
+  q5:  "Q25 – Vaporização",
+  q6:  "Q26 – Evapotranspiração",
+  q7:  "Q27 – Ciclo da água",
+  q8:  "Q28 – Intemperismo",
+  q9:  "Q29 – Inundações urbanas",
+  q10: "Q30 – Substância pura simples"
+};
+
+// ── Normaliza nome da aba ────────────────────────────────────────────────
+function wms_normalizeSheetName(raw) {
+  if (!raw) return "6oA respostas WMS";
+  var s = raw.toString().trim();
+  var aliases = {
+    "6A respostas WMS":  "6oA respostas WMS",
+    "6C respostas WMS":  "6oC respostas WMS",
+    "6ºA respostas WMS": "6oA respostas WMS",
+    "6ºC respostas WMS": "6oC respostas WMS"
+  };
+  return aliases[s] || s;
+}
+
+// ── Calcula acertos no servidor ──────────────────────────────────────────
+function wms_calcularAcertos(payload) {
+  var acertos = 0;
+  Object.keys(WMS_GABARITO).forEach(function(qKey) {
+    var resp    = (payload[qKey] || "").toString().trim().toUpperCase();
+    var correto = WMS_GABARITO[qKey].toUpperCase();
+    if (resp && resp === correto) acertos++;
+  });
+  return acertos;
+}
+
+// ── Calcula nota 0–10 ────────────────────────────────────────────────────
+function wms_calcularNota(acertos) {
+  return Math.round((acertos / WMS_TOTAL_QUESTOES) * 10 * 10) / 10;
+}
+
+// ── Monta HTML do e-mail ─────────────────────────────────────────────────
+function wms_montarEmailHTML(payload, acertos, nota, sheetName) {
+  var turmaLabel = sheetName
+    .replace(" respostas WMS", "")
+    .replace("6oA", "6º Ano A")
+    .replace("6oC", "6º Ano C");
+
+  var corNota = Number(nota) >= 5 ? "#27ae60" : "#e74c3c";
+  var emoji   = Number(nota) >= 7 ? "🏆" : Number(nota) >= 5 ? "👍" : "📚";
+
+  var linhas = Object.keys(WMS_GABARITO).map(function(qKey) {
+    var resp    = (payload[qKey] || "—").toString().trim().toUpperCase();
+    var correto = WMS_GABARITO[qKey].toUpperCase();
+    var acertou = resp === correto;
+    var cor     = acertou ? "#27ae60" : "#e74c3c";
+    var icone   = acertou ? "✅" : "❌";
+    return '<tr>' +
+      '<td style="padding:6px 10px;border-bottom:1px solid #eee;">'                                      + WMS_QUESTAO_NOMES[qKey] + '</td>' +
+      '<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;">'   + resp    + '</td>' +
+      '<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;color:' + cor + ';">' + correto + '</td>' +
+      '<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;">'                    + icone   + '</td>' +
+    '</tr>';
+  }).join('');
+
+  return '<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f6f9;margin:0;padding:20px;">' +
+  '<div style="max-width:580px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1);">' +
+    '<div style="background:#064e9b;color:white;padding:24px 28px;">' +
+      '<div style="font-size:0.75rem;opacity:.75;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">E.E. Profª Wanda MasacagNi de Sá · SEDUC-SP</div>' +
+      '<h1 style="margin:0;font-size:1.2rem;">Resultado da Atividade de Ciências</h1>' +
+      '<div style="font-size:0.85rem;opacity:.85;margin-top:4px;">Revisão – Prova Paulista · ' + turmaLabel + '</div>' +
+    '</div>' +
+    '<div style="padding:24px 28px;">' +
+      '<p style="margin-bottom:6px;">Olá, <strong>' + (payload.studentName || "") + '</strong>! ' + emoji + '</p>' +
+      '<p style="margin-bottom:20px;color:#555;font-size:0.9rem;">Aqui está o resultado da sua atividade de revisão para a Prova Paulista.</p>' +
+      '<div style="background:#f0f5fc;border-radius:10px;padding:18px;text-align:center;margin-bottom:22px;">' +
+        '<div style="font-size:2.8rem;font-weight:900;color:' + corNota + ';">' + acertos + ' / ' + WMS_TOTAL_QUESTOES + '</div>' +
+        '<div style="font-size:1.1rem;font-weight:700;color:' + corNota + ';">Nota: ' + nota + '</div>' +
+      '</div>' +
+      '<h3 style="margin-bottom:10px;color:#064e9b;font-size:0.95rem;">Detalhamento por questão</h3>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">' +
+        '<thead>' +
+          '<tr style="background:#064e9b;color:white;">' +
+            '<th style="padding:8px 10px;text-align:left;">Questão</th>' +
+            '<th style="padding:8px 10px;">Sua resp.</th>' +
+            '<th style="padding:8px 10px;">Gabarito</th>' +
+            '<th style="padding:8px 10px;">Resultado</th>' +
+          '</tr>' +
+        '</thead>' +
+        '<tbody>' + linhas + '</tbody>' +
+      '</table>' +
+      (payload.switchCount && Number(payload.switchCount) > 0
+        ? '<p style="margin-top:16px;font-size:0.78rem;color:#e67e22;">⚠️ Detectamos ' + payload.switchCount + ' troca(s) de aba durante a atividade.</p>'
+        : '') +
+      '<p style="margin-top:20px;font-size:0.82rem;color:#888;">Data: ' + (payload.date || "") + ' · Nº ' + (payload.studentNumber || "") + '</p>' +
+    '</div>' +
+    '<div style="background:#f0f5fc;padding:14px 28px;text-align:center;font-size:0.75rem;color:#666;">' +
+      'E.E. Profª Wanda MasacagNi de Sá · SEDUC-SP · Ciências' +
+    '</div>' +
+  '</div></body></html>';
+}
+
+// ── Envia e-mail ao aluno ────────────────────────────────────────────────
+function wms_enviarEmail(payload, acertos, nota, sheetName) {
+  var email = (payload.studentEmail || "").toString().trim();
+  if (!email) return;
+
+  var turmaLabel = sheetName
+    .replace(" respostas WMS", "")
+    .replace("6oA", "6º Ano A")
+    .replace("6oC", "6º Ano C");
+
+  var assunto  = "[WMS] Resultado – Revisão Ciências " + turmaLabel + " – " + (payload.studentName || "");
+  var htmlBody = wms_montarEmailHTML(payload, acertos, nota, sheetName);
+
+  try {
+    MailApp.sendEmail({ to: email, subject: assunto, htmlBody: htmlBody });
+  } catch (e) {
+    Logger.log("Erro ao enviar e-mail para " + email + ": " + e.toString());
+  }
+}
+
+// ── Cria aba com cabeçalho se não existir ────────────────────────────────
+function wms_getOrCreate(ss, name) {
+  var sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    var headers = [
+      "Data/Hora", "Nome", "Nº", "Série", "Data", "E-mail",
+      "Q21", "Q22", "Q23", "Q24", "Q25", "Q26", "Q27", "Q28", "Q29", "Q30",
+      "Acertos", "Nota (0-10)", "Saídas de aba"
+    ];
+    sheet.appendRow(headers);
+
+    var h = sheet.getRange(1, 1, 1, headers.length);
+    h.setBackground("#064e9b")
+     .setFontColor("#ffffff")
+     .setFontWeight("bold")
+     .setHorizontalAlignment("center")
+     .setVerticalAlignment("middle");
+
+    sheet.setRowHeight(1, 36);
+    sheet.setFrozenRows(1);
+    sheet.setColumnWidth(1, 155);
+    sheet.setColumnWidth(2, 250);
+    sheet.setColumnWidth(3, 45);
+    sheet.setColumnWidth(4, 100);
+    sheet.setColumnWidth(5, 90);
+    sheet.setColumnWidth(6, 200);
+    for (var c = 7; c <= 16; c++) sheet.setColumnWidth(c, 52);
+    sheet.setColumnWidth(17, 70);
+    sheet.setColumnWidth(18, 85);
+    sheet.setColumnWidth(19, 90);
+  }
+  return sheet;
+}
+
+// ── Formata a linha recém gravada ────────────────────────────────────────
+function wms_applyFormatting(sheet, rowIndex, payload, acertos, nota) {
+  for (var i = 1; i <= 10; i++) {
+    var ans  = (payload["q" + i] || "").toString().trim().toUpperCase();
+    var ok   = (WMS_GABARITO["q" + i] || "").toUpperCase();
+    if (!ans) continue;
+    var cell = sheet.getRange(rowIndex, 6 + i);
+    cell.setHorizontalAlignment("center").setFontWeight("bold");
+    if (ok) {
+      cell.setBackground(ans === ok ? "#2980b9" : "#e74c3c")
+          .setFontColor("#ffffff");
+    }
+  }
+
+  sheet.getRange(rowIndex, 17)
+       .setHorizontalAlignment("center")
+       .setFontWeight("bold");
+
+  sheet.getRange(rowIndex, 18)
+       .setHorizontalAlignment("center")
+       .setFontWeight("bold")
+       .setBackground(Number(nota) >= 5 ? "#27ae60" : "#e74c3c")
+       .setFontColor("#ffffff");
+
+  var saidas = Number(payload.switchCount) || 0;
+  if (saidas > 0) {
+    sheet.getRange(rowIndex, 19)
+         .setBackground("#f39c12")
+         .setFontColor("#ffffff")
+         .setFontWeight("bold")
+         .setHorizontalAlignment("center");
+  }
+}
+
+// ── Saída JSONP ──────────────────────────────────────────────────────────
+function wms_jsonpOut(callback, obj) {
+  var body = callback
+    ? callback + "(" + JSON.stringify(obj) + ");"
+    : JSON.stringify(obj);
+  return ContentService.createTextOutput(body)
+                       .setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
+// ── Ponto de entrada (GET) ───────────────────────────────────────────────
+function doGet(e) {
+  var callback = "";
+  try {
+    callback = (e && e.parameter && e.parameter.callback) ? e.parameter.callback : "";
+
+    if (!e || !e.parameter || !e.parameter.data) {
+      return wms_jsonpOut(callback, { status: "online", msg: "WMS Ciências Script ativo." });
+    }
+
+    var bytes   = Utilities.base64Decode(e.parameter.data, Utilities.Charset.UTF_8);
+    var json    = Utilities.newBlob(bytes).getDataAsString();
+    var payload = JSON.parse(json);
+
+    var sheetName = wms_normalizeSheetName(payload.sheetName || payload.turma || "");
+
+    var acertos = wms_calcularAcertos(payload);
+    var nota    = wms_calcularNota(acertos);
+
+    var ss    = SpreadsheetApp.openById(WMS_SPREADSHEET_ID);
+    var sheet = wms_getOrCreate(ss, sheetName);
+
+    var now = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    var row = [
+      now,
+      (payload.studentName   || "").toString().trim(),
+      (payload.studentNumber || "").toString().trim(),
+      (payload.studentGrade  || "").toString().trim(),
+      (payload.date          || "").toString().trim(),
+      (payload.studentEmail  || "").toString().trim()
+    ];
+
+    for (var i = 1; i <= 10; i++) {
+      row.push(
+        (payload["q" + i] !== undefined && payload["q" + i] !== null)
+          ? payload["q" + i].toString().trim().toUpperCase()
+          : ""
+      );
+    }
+
+    row.push(acertos);
+    row.push(nota);
+    row.push(Number(payload.switchCount) || 0);
+
+    sheet.appendRow(row);
+    var lastRow = sheet.getLastRow();
+
+    wms_applyFormatting(sheet, lastRow, payload, acertos, nota);
+
+    wms_enviarEmail(payload, acertos, nota, sheetName);
+
+    return wms_jsonpOut(callback, {
+      status:  "ok",
+      sheet:   sheetName,
+      row:     lastRow,
+      acertos: acertos,
+      nota:    nota
+    });
+
+  } catch (err) {
+    Logger.log("ERRO doGet: " + err.toString() + "\n" + (err.stack || ""));
+    return wms_jsonpOut(callback, {
+      status:  "error",
+      message: err.toString(),
+      stack:   err.stack || ""
+    });
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  TESTES MANUAIS
+// ════════════════════════════════════════════════════════════════════════
+
+function wms_testeManual_6oA() {
+  var fake = {
+    parameter: {
+      callback: "cb",
+      data: Utilities.base64Encode(JSON.stringify({
+        sheetName:     "6oA respostas WMS",
+        studentName:   "ALUNO TESTE A",
+        studentNumber: "1",
+        studentGrade:  "6º Ano A",
+        date:          "09/06/2026",
+        studentEmail:  "00001254829957sp@al.educacao.sp.gov.br",
+        q1:"B", q2:"C", q3:"D", q4:"A", q5:"D",
+        q6:"A", q7:"C", q8:"B", q9:"D", q10:"C",
+        switchCount: 0
+      }), Utilities.Charset.UTF_8)
+    }
+  };
+  Logger.log(doGet(fake).getContent());
+}
+
+function wms_testeManual_6oC() {
+  var fake = {
+    parameter: {
+      callback: "cb",
+      data: Utilities.base64Encode(JSON.stringify({
+        sheetName:     "6oC respostas WMS",
+        studentName:   "ALUNO TESTE C",
+        studentNumber: "1",
+        studentGrade:  "6º Ano C",
+        date:          "09/06/2026",
+        studentEmail:  "000121488538Xsp@al.educacao.sp.gov.br",
+        q1:"B", q2:"C", q3:"D", q4:"A", q5:"D",
+        q6:"A", q7:"C", q8:"B", q9:"D", q10:"C",
+        switchCount: 0
+      }), Utilities.Charset.UTF_8)
+    }
+  };
+  Logger.log(doGet(fake).getContent());
+}
+
+function wms_testeEmail() {
+  var payload = {
+    studentName:   "TESTE DE E-MAIL",
+    studentNumber: "99",
+    studentGrade:  "6º Ano A",
+    date:          "09/06/2026",
+    studentEmail:  "SEU_EMAIL_AQUI@gmail.com",
+    q1:"B", q2:"C", q3:"D", q4:"A", q5:"D",
+    q6:"A", q7:"C", q8:"B", q9:"D", q10:"C",
+    switchCount: 0
+  };
+  var acertos = wms_calcularAcertos(payload);
+  var nota    = wms_calcularNota(acertos);
+  wms_enviarEmail(payload, acertos, nota, "6oA respostas WMS");
+  Logger.log("E-mail enviado. Acertos: " + acertos + " | Nota: " + nota);
+}
