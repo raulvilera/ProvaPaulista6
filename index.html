@@ -1,375 +1,1013 @@
-// ═══════════════════════════════════════════════════════════════════════════
-//  Apps Script — Revisão Prova Paulista | Atividade de Ciências – 6º Ano
-//  E.E. Profª Wanda MasacagNi de Sá (WMS) — SEDUC-SP
-//
-//  ⚠️  SUBSTITUA WMS_SPREADSHEET_ID pelo ID da sua nova planilha Google.
-//
-//  ABAS CRIADAS AUTOMATICAMENTE:
-//    • "6oA respostas WMS" — 6º Ano A
-//    • "6oC respostas WMS" — 6º Ano C
-//
-//  FUNCIONALIDADES:
-//    • Recebe respostas das 10 questões (Q21–Q30) via JSONP GET
-//    • Calcula acertos e nota (0–10) no servidor (não confia no cliente)
-//    • Colore células por acerto/erro
-//    • Envia e-mail de resultado ao aluno no e-mail institucional
-//
-//  COMO PUBLICAR:
-//    1. Abra o Apps Script vinculado à planilha
-//    2. Cole este código substituindo o conteúdo existente
-//    3. Clique em "Implantar" > "Nova implantação"
-//    4. Tipo: "Aplicativo da Web"
-//       Executar como: "Eu (seu e-mail)"
-//       Quem tem acesso: "Qualquer pessoa"
-//    5. Copie a URL gerada e cole em SCRIPT_URL no arquivo HTML
-//    ⚠️  Após qualquer edição futura, sempre crie uma NOVA VERSÃO ao reimplantar.
-// ═══════════════════════════════════════════════════════════════════════════
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atividade de Ciências – Revisão Prova Paulista – 6º Ano – WMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Merriweather:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-var WMS_SPREADSHEET_ID = "COLE_AQUI_O_ID_DA_SUA_PLANILHA";
-
-// Gabarito das questões 21–30 (mapeadas como q1–q10 no payload)
-var WMS_GABARITO = {
-  q1:  "B",  // Q21 – Biosfera
-  q2:  "C",  // Q22 – Oxigênio
-  q3:  "D",  // Q23 – Camada de Ozônio
-  q4:  "A",  // Q24 – Estados físicos da água
-  q5:  "D",  // Q25 – Vaporização
-  q6:  "A",  // Q26 – Evapotranspiração
-  q7:  "C",  // Q27 – Ciclo da água
-  q8:  "B",  // Q28 – Intemperismo
-  q9:  "D",  // Q29 – Inundações / bueiros
-  q10: "C"   // Q30 – Substância pura simples
-};
-
-var WMS_TOTAL_QUESTOES = 10;
-
-var WMS_QUESTAO_NOMES = {
-  q1:  "Q21 – Biosfera",
-  q2:  "Q22 – Oxigênio na atmosfera",
-  q3:  "Q23 – Camada de Ozônio",
-  q4:  "Q24 – Estados físicos da água",
-  q5:  "Q25 – Vaporização",
-  q6:  "Q26 – Evapotranspiração",
-  q7:  "Q27 – Ciclo da água",
-  q8:  "Q28 – Intemperismo",
-  q9:  "Q29 – Inundações urbanas",
-  q10: "Q30 – Substância pura simples"
-};
-
-// ── Normaliza nome da aba ────────────────────────────────────────────────
-function wms_normalizeSheetName(raw) {
-  if (!raw) return "6oA respostas WMS";
-  var s = raw.toString().trim();
-  var aliases = {
-    "6A respostas WMS":  "6oA respostas WMS",
-    "6C respostas WMS":  "6oC respostas WMS",
-    "6ºA respostas WMS": "6oA respostas WMS",
-    "6ºC respostas WMS": "6oC respostas WMS"
-  };
-  return aliases[s] || s;
+:root {
+  --azul:        #064e9b;
+  --azul-medio:  #1665c0;
+  --azul-claro:  #ddeeff;
+  --azul-borda:  #90b8e8;
+  --verde:       #1a7a4a;
+  --verde-claro: #d4f5e2;
+  --vermelho:    #c0392b;
+  --verm-claro:  #fde8e8;
+  --amarelo:     #f39c12;
+  --cinza-bg:    #f0f5fc;
+  --cinza-borda: #c8d8ec;
+  --texto:       #0d1b2e;
+  --branco:      #ffffff;
+  --sombra-s:    0 2px 8px rgba(6,78,155,.10);
+  --sombra-m:    0 4px 20px rgba(6,78,155,.14);
+  --radius:      12px;
+  --font-body:   'Nunito', sans-serif;
+  --font-title:  'Merriweather', serif;
 }
 
-// ── Calcula acertos no servidor ──────────────────────────────────────────
-function wms_calcularAcertos(payload) {
-  var acertos = 0;
-  Object.keys(WMS_GABARITO).forEach(function(qKey) {
-    var resp    = (payload[qKey] || "").toString().trim().toUpperCase();
-    var correto = WMS_GABARITO[qKey].toUpperCase();
-    if (resp && resp === correto) acertos++;
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--cinza-bg);
+  color: var(--texto);
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+.topo-escola {
+  background: var(--azul);
+  color: white;
+  padding: 0;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  box-shadow: 0 3px 18px rgba(6,78,155,.35);
+}
+.topo-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 11px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.topo-logo {
+  width: 42px; height: 42px;
+  background: rgba(255,255,255,.18);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; flex-shrink: 0;
+}
+.topo-texto { flex: 1; min-width: 0; }
+.topo-escola-nome {
+  font-family: var(--font-title);
+  font-size: clamp(0.78rem, 2.5vw, 1.0rem);
+  font-weight: 900;
+  letter-spacing: .5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topo-subtitulo {
+  font-size: 0.7rem;
+  opacity: .72;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+.ficha-wrap {
+  background: white;
+  border-bottom: 3px solid var(--azul-claro);
+  box-shadow: var(--sombra-s);
+}
+.ficha {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px 20px 18px;
+}
+
+.ficha-turma {
+  display: inline-block;
+  margin-bottom: 10px;
+}
+.ficha-turma select {
+  width: auto;
+  min-width: 160px;
+}
+
+.ficha-linha1 {
+  display: grid;
+  grid-template-columns: 1fr 80px auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+#inp-serie {
+  width: auto;
+  min-width: 90px;
+  white-space: nowrap;
+}
+.ficha-linha2 {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.campo { display: flex; flex-direction: column; gap: 4px; }
+.campo label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--azul);
+  text-transform: uppercase;
+  letter-spacing: .8px;
+}
+.campo select,
+.campo input {
+  padding: 8px 11px;
+  border: 2px solid var(--cinza-borda);
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  color: var(--texto);
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+  background: white;
+  width: 100%;
+}
+.campo select:focus,
+.campo input:focus {
+  border-color: var(--azul-medio);
+  box-shadow: 0 0 0 3px rgba(22,101,192,.15);
+}
+.campo input[readonly] {
+  background: var(--cinza-bg);
+  color: #555;
+  cursor: default;
+}
+
+.ficha-titulo {
+  text-align: center;
+  padding: 10px 0 2px;
+  border-top: 2px dashed var(--azul-claro);
+}
+.ficha-titulo h2 {
+  font-family: var(--font-title);
+  font-size: clamp(0.9rem, 3vw, 1.25rem);
+  color: var(--azul);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.ficha-titulo p {
+  font-size: 0.78rem;
+  color: #666;
+  margin-top: 3px;
+}
+
+.questoes-wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 14px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.questao-card {
+  background: white;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--cinza-borda);
+  box-shadow: var(--sombra-s);
+  overflow: hidden;
+  animation: fadeUp .4s ease both;
+}
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.questao-card:nth-child(1)  { animation-delay: .05s; }
+.questao-card:nth-child(2)  { animation-delay: .10s; }
+.questao-card:nth-child(3)  { animation-delay: .15s; }
+.questao-card:nth-child(4)  { animation-delay: .20s; }
+.questao-card:nth-child(5)  { animation-delay: .25s; }
+.questao-card:nth-child(6)  { animation-delay: .30s; }
+.questao-card:nth-child(7)  { animation-delay: .35s; }
+.questao-card:nth-child(8)  { animation-delay: .40s; }
+.questao-card:nth-child(9)  { animation-delay: .45s; }
+.questao-card:nth-child(10) { animation-delay: .50s; }
+
+.questao-header {
+  background: linear-gradient(90deg, var(--azul) 0%, var(--azul-medio) 100%);
+  color: white;
+  padding: 9px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.questao-num {
+  font-family: var(--font-title);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.hab-tag {
+  background: rgba(255,255,255,.18);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.70rem;
+  letter-spacing: .5px;
+}
+
+.questao-body { padding: 16px 18px; }
+.enunciado {
+  font-size: 0.96rem;
+  line-height: 1.65;
+  margin-bottom: 14px;
+  color: var(--texto);
+}
+.questao-img {
+  display: block;
+  max-width: 100%;
+  width: auto;
+  max-height: 280px;
+  margin: 0 auto 16px;
+  border-radius: 9px;
+  box-shadow: 0 3px 12px rgba(0,0,0,.10);
+  border: 1px solid #e0e8f4;
+  object-fit: contain;
+}
+
+.alternativas { display: flex; flex-direction: column; gap: 8px; }
+.alt-btn {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 14px;
+  border: 2px solid var(--cinza-borda);
+  border-radius: 10px;
+  background: white;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.91rem;
+  color: var(--texto);
+  text-align: left;
+  width: 100%;
+  transition: border-color .18s, background .18s, transform .12s;
+  user-select: none;
+}
+.alt-btn:hover:not(.bloqueada) {
+  border-color: var(--azul-medio);
+  background: var(--azul-claro);
+  transform: translateX(2px);
+}
+.alt-btn.selecionada {
+  border-color: var(--verde);
+  background: var(--verde);
+  color: white;
+  font-weight: 800;
+}
+.alt-btn.selecionada .letra-badge {
+  background: rgba(255,255,255,.25);
+  color: white;
+}
+.alt-btn.correta  { background: var(--verde-claro); border-color: var(--verde); }
+.alt-btn.errada   { background: var(--verm-claro);  border-color: var(--vermelho); }
+.alt-btn.gabarito-revelado { background: var(--verde-claro); border-color: var(--verde); opacity:.75; }
+.alt-btn.bloqueada { cursor: default; transform: none; }
+
+.letra-badge {
+  min-width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--azul);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.82rem;
+  flex-shrink: 0;
+  transition: background .18s;
+}
+.alt-btn.correta  .letra-badge { background: var(--verde); }
+.alt-btn.errada   .letra-badge { background: var(--vermelho); }
+.alt-btn.gabarito-revelado .letra-badge { background: var(--verde); }
+
+.feedback {
+  display: none;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  animation: slideIn .3s ease;
+}
+@keyframes slideIn {
+  from { opacity:0; transform:translateY(-5px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.feedback.certa  { background: var(--verde-claro); border: 1.5px solid var(--verde);    color: #0a3d22; }
+.feedback.errada { background: var(--verm-claro);  border: 1.5px solid var(--vermelho); color: #6b1010; }
+
+.feedback > strong:first-child { display: block; margin-bottom: 4px; font-size: .87rem; }
+.feedback strong.inline        { display: inline; }
+
+.btn-finalizar-wrap {
+  max-width: 860px;
+  margin: 0 auto 50px;
+  padding: 0 14px;
+  display: none;
+}
+.btn-finalizar {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(90deg, var(--azul) 0%, var(--azul-medio) 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: var(--sombra-m);
+  transition: transform .2s, box-shadow .2s;
+  letter-spacing: .3px;
+}
+.btn-finalizar:hover { transform: scale(1.02); box-shadow: 0 6px 28px rgba(6,78,155,.28); }
+.btn-finalizar:disabled {
+  opacity: .6; cursor: not-allowed; transform: none;
+}
+
+#tela-resultado {
+  display: none;
+  max-width: 640px;
+  margin: 30px auto 60px;
+  padding: 0 14px;
+}
+.resultado-card {
+  background: white;
+  border-radius: 18px;
+  padding: 36px 30px;
+  box-shadow: var(--sombra-m);
+  text-align: center;
+}
+.resultado-emoji { font-size: 3rem; margin-bottom: 10px; }
+.resultado-titulo {
+  font-family: var(--font-title);
+  font-size: 1.4rem;
+  color: var(--azul);
+  margin-bottom: 6px;
+}
+.resultado-aluno {
+  font-size: 0.88rem;
+  color: #555;
+  margin-bottom: 18px;
+}
+.resultado-nota {
+  font-size: 3.2rem;
+  font-weight: 900;
+  color: var(--azul);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.resultado-mensagem {
+  font-size: 0.93rem;
+  color: #444;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+.resultado-email-status {
+  font-size: 0.80rem;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--azul-claro);
+  color: var(--azul);
+  margin-bottom: 20px;
+  display: none;
+}
+
+#toast {
+  position: fixed;
+  bottom: 20px; left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #0d1b2e;
+  color: white;
+  padding: 11px 22px;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(0,0,0,.3);
+  transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+  z-index: 9999;
+  white-space: nowrap;
+  pointer-events: none;
+  max-width: 90vw;
+  text-align: center;
+}
+#toast.show { transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 600px) {
+  .ficha-linha1 { grid-template-columns: 1fr 70px; }
+  .ficha-linha1 .campo:first-child { grid-column: 1 / -1; }
+  .ficha-linha2 { grid-template-columns: 1fr; }
+  .questao-body { padding: 13px 13px; }
+  .alt-btn { padding: 9px 11px; font-size: 0.87rem; }
+  .resultado-nota { font-size: 2.6rem; }
+}
+@media (max-width: 380px) {
+  .ficha-linha1 { grid-template-columns: 1fr; }
+  .topo-escola-nome { font-size: 0.75rem; }
+}
+</style>
+</head>
+<body>
+
+<header class="topo-escola">
+  <div class="topo-inner">
+    <div class="topo-logo">🏫</div>
+    <div class="topo-texto">
+      <div class="topo-escola-nome">E.E. PROFª WANDA MASACAGNI DE SÁ</div>
+    </div>
+  </div>
+</header>
+
+<div class="ficha-wrap">
+  <div class="ficha">
+
+    <div class="ficha-turma">
+      <div class="campo">
+        <label for="sel-turma">Turma</label>
+        <select id="sel-turma" onchange="aoMudarTurma()">
+          <option value="">— Selecione a turma —</option>
+          <option value="6A">6º Ano A</option>
+          <option value="6C">6º Ano C</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="ficha-linha1">
+      <div class="campo">
+        <label for="sel-aluno">Nome</label>
+        <select id="sel-aluno" onchange="aoSelecionarAluno()">
+          <option value="">— Primeiro selecione a turma —</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label for="inp-num">Nº</label>
+        <input type="text" id="inp-num" readonly placeholder="–">
+      </div>
+      <div class="campo">
+        <label for="inp-serie">Série</label>
+        <input type="text" id="inp-serie" readonly placeholder="–">
+      </div>
+    </div>
+
+    <div class="ficha-linha2">
+      <div class="campo">
+        <label for="inp-data">Data</label>
+        <input type="date" id="inp-data">
+      </div>
+      <div class="campo">
+        <label for="inp-email">E-mail institucional</label>
+        <input type="email" id="inp-email" readonly placeholder="Será preenchido automaticamente">
+      </div>
+    </div>
+
+    <div class="ficha-titulo">
+      <h2>Atividade de Ciências — Revisão Prova Paulista</h2>
+      <p>Leia cada questão com atenção. Ao finalizar, clique em "Enviar Atividade".</p>
+    </div>
+
+  </div>
+</div>
+
+<div class="questoes-wrap" id="questoes-wrap"></div>
+
+<div class="btn-finalizar-wrap" id="wrap-btn-finalizar">
+  <button class="btn-finalizar" id="btn-finalizar" onclick="finalizarAtividade()">
+    ✅ Enviar Atividade
+  </button>
+</div>
+
+<div id="tela-resultado">
+  <div class="resultado-card">
+    <div class="resultado-emoji" id="res-emoji">🎉</div>
+    <div class="resultado-titulo">Resultado da Atividade</div>
+    <div class="resultado-aluno" id="res-aluno"></div>
+    <div class="resultado-nota" id="res-nota">0 / 10</div>
+    <div class="resultado-mensagem" id="res-msg"></div>
+    <div class="resultado-email-status" id="res-email-status"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* ── ⚠️  SUBSTITUA PELA URL DO SEU WEB APP PUBLICADO NO APPS SCRIPT ──── */
+var SCRIPT_URL = "COLE_AQUI_A_URL_DO_WEB_APP";
+
+/* ── DADOS DOS ALUNOS ─────────────────────────────────────────────────── */
+var TURMAS = {
+  "6A": [
+    { num:1,  nome:"ALICIA DE SOUZA SIQUEIRA",              email:"00001254829957sp@al.educacao.sp.gov.br" },
+    { num:3,  nome:"AMANDA SALDANHA CAVALCANTE",            email:"00001164988931SP@al.educacao.sp.gov.br" },
+    { num:4,  nome:"ANA BARBARA SAUGO DE OLIVEIRA",         email:"00001223588488sp@al.educacao.sp.gov.br" },
+    { num:5,  nome:"DANIEL DA SILVA TAVARES",               email:"00001214885093sp@al.educacao.sp.gov.br" },
+    { num:6,  nome:"ISAAC LOURENCO DA SILVA NASCIMENTO",    email:"0000115653995xsp@al.educacao.sp.gov.br" },
+    { num:7,  nome:"ISABELY SHIBASAKI FERREIRA",            email:"00001165060267sp@al.educacao.sp.gov.br" },
+    { num:8,  nome:"ISAQUE NOGUEIRA DE ANDRADE",            email:"00001158822455sp@al.educacao.sp.gov.br" },
+    { num:10, nome:"JOÃO INÁCIO DO NASCIMENTO RODRIGUES",   email:"00001219420281SP@al.educacao.sp.gov.br" },
+    { num:11, nome:"JOAO PIERRE DA SILVA",                  email:"0000116526142XSP@al.educacao.sp.gov.br" },
+    { num:12, nome:"JULLIA VITORIA ALAMBERT GOMES",         email:"00001211907764sp@al.educacao.sp.gov.br" },
+    { num:13, nome:"KAMRAN RASEKH",                         email:"00001245963533sp@al.educacao.sp.gov.br" },
+    { num:14, nome:"KAYQUE VINICIOS DA SILVA",              email:"00001165272295SP@al.educacao.sp.gov.br" },
+    { num:15, nome:"LORENA EMMELINE MENDES LEFEVRE",        email:"00001216217324sp@al.educacao.sp.gov.br" },
+    { num:16, nome:"LUAN HENRIQUE DE ALMEIDA TAVARES",      email:"00001236900662sp@al.educacao.sp.gov.br" },
+    { num:18, nome:"MURILLO CARVALHO SALES",                email:"00001214863504sp@al.educacao.sp.gov.br" },
+    { num:19, nome:"NICOLY FERREIRA GONCALVES",             email:"00001239240880sp@al.educacao.sp.gov.br" },
+    { num:21, nome:"SARAH CAVALCANTE CANDIDO DA SILVA",     email:"00001167642430sp@al.educacao.sp.gov.br" },
+    { num:22, nome:"SOFIA SOARES DE OLIVEIRA",              email:"00001229656303SP@al.educacao.sp.gov.br" },
+    { num:23, nome:"VINICÍUS ARTHUR ALVES DA SILVA",        email:"00001214798986sp@al.educacao.sp.gov.br" },
+    { num:24, nome:"WALLISON LEONARDO DE JESUS LESSA",      email:"00001158916486sp@al.educacao.sp.gov.br" },
+    { num:27, nome:"EDUARDO ANTONIO LAMBERT GONCALVES",     email:"00001254890658sp@al.educacao.sp.gov.br" },
+    { num:28, nome:"FERNANDA MEDEIROS FANTINI",             email:"0000116503850XSP@al.educacao.sp.gov.br" },
+    { num:29, nome:"JOAO PIETRO ROCHA OLIVEIRA",            email:"00001249838769sp@al.educacao.sp.gov.br" },
+    { num:30, nome:"ALICIA SALGADO DA SILVA",               email:"00001164987562SP@al.educacao.sp.gov.br" },
+    { num:31, nome:"NICOLLY DUDA DA SILVA SANTOS",          email:"00001165188508SP@al.educacao.sp.gov.br" },
+    { num:32, nome:"JOÃO VICTOR FERNANDES MORAES",          email:"00001144549474SP@al.educacao.sp.gov.br" }
+  ],
+  "6C": [
+    { num:1,  nome:"AGATHA RODRIGUES MIRANDA",              email:"000121488538Xsp@al.educacao.sp.gov.br" },
+    { num:2,  nome:"ALICE DA SILVA VIEIRA",                 email:"0001150775117sp@al.educacao.sp.gov.br" },
+    { num:3,  nome:"ANA LETÍCIA MARTINS DA SILVA",          email:"0001214940778sp@al.educacao.sp.gov.br" },
+    { num:4,  nome:"ARTHUR DEIVID DA SILVA FARIAS",         email:"0001214870016sp@al.educacao.sp.gov.br" },
+    { num:5,  nome:"CLARA JAZMIN URDAPILLETA GONZALEZ",     email:"0001221516528sp@al.educacao.sp.gov.br" },
+    { num:7,  nome:"EMILY COSTA PEREIRA",                   email:"0001155071074sp@al.educacao.sp.gov.br" },
+    { num:8,  nome:"FELIPE BARROS DE FREITAS",              email:"0001158794058sp@al.educacao.sp.gov.br" },
+    { num:9,  nome:"HELOISA NEVES DA SILVA",                email:"0001150787399sp@al.educacao.sp.gov.br" },
+    { num:10, nome:"ISABELA SEVERA RAULINO",                email:"0001158811949sp@al.educacao.sp.gov.br" },
+    { num:12, nome:"JOAO VITOR BARBOSA PONTES",             email:"0001158827349sp@al.educacao.sp.gov.br" },
+    { num:14, nome:"LAURAH APARECIDA CANDIDO DE OLIVEIRA",  email:"0001216216174sp@al.educacao.sp.gov.br" },
+    { num:15, nome:"MATHEUS DUARTE DA SILVA",               email:"0001214874605sp@al.educacao.sp.gov.br" },
+    { num:17, nome:"ROSA MARIA OLIVEIRA ALMEIDA",           email:"0001214935175sp@al.educacao.sp.gov.br" },
+    { num:18, nome:"SARAH LIVIA NUNES NASCIMENTO",          email:"0001229767241sp@al.educacao.sp.gov.br" },
+    { num:19, nome:"TALITA VITORIA VIEIRA NUNES",           email:"0001223579098sp@al.educacao.sp.gov.br" },
+    { num:20, nome:"VICTOR EDUARDO DOS SANTOS",             email:"0001158913047sp@al.educacao.sp.gov.br" },
+    { num:21, nome:"VITOR HUGO BRAZ GOMES",                 email:"0001164683524sp@al.educacao.sp.gov.br" },
+    { num:22, nome:"LORENNA ANDRADE DE OLIVEIRA",           email:"0001165284844sp@al.educacao.sp.gov.br" },
+    { num:23, nome:"MARIA EDUARDA ARAUJO GARRIDO",          email:"0001254805813sp@al.educacao.sp.gov.br" },
+    { num:24, nome:"RAISSA MATHIAS ANDRADE",                email:"0001214774891sp@al.educacao.sp.gov.br" },
+    { num:25, nome:"UELITON VIEIRA DA SILVA",               email:"0001214900872sp@al.educacao.sp.gov.br" },
+    { num:26, nome:"VALENTINA DOS SANTOS CORREA",           email:"0001158447383sp@al.educacao.sp.gov.br" },
+    { num:27, nome:"MARIA VITORIA ALMEIDA SANTOS",          email:"0001223579700sp@al.educacao.sp.gov.br" },
+    { num:28, nome:"CATARYNA DOS SANTOS",                   email:"000121484716Xsp@al.educacao.sp.gov.br" },
+    { num:29, nome:"ANA CLARA CORREA PINTO",                email:"0001164990445sp@al.educacao.sp.gov.br" }
+  ]
+};
+
+/* ── BANCO DE QUESTÕES ─────────────────────────────────────────────────── */
+var QUESTOES = [
+  {
+    num:21, hab:"EF06CI11",
+    enunciado:"O planeta Terra é lar de uma diversidade de seres vivos, que habitam diferentes ambientes. O conjunto de todas as regiões da Terra que são habitáveis por seres vivos recebe o nome de:",
+    imagem:"https://files.manuscdn.com/user_upload_by_module/session_file/310519663425180148/wMwqKRHofKKPEZNz.jpg",
+    gabarito:"B",
+    alts:[
+      {l:"A", t:"Litosfera."},
+      {l:"B", t:"Biosfera."},
+      {l:"C", t:"Atmosfera."},
+      {l:"D", t:"Hidrosfera."}
+    ],
+    comentario:"A <strong class=\"inline\">Biosfera</strong> é o conjunto de todas as regiões da Terra habitáveis por seres vivos — do fundo dos oceanos ao alto das montanhas."
+  },
+  {
+    num:22, hab:"EF06CI11",
+    enunciado:"A atmosfera é dividida em diferentes camadas. Aquela que está mais próxima da superfície terrestre e onde vivem os seres vivos é a troposfera. Ela é composta por uma mistura de gases, sendo o Nitrogênio (78%) o mais abundante. Qual é o segundo gás mais abundante (representado por X na imagem), essencial para a respiração?",
+    imagem:"https://files.manuscdn.com/user_upload_by_module/session_file/310519663425180148/lvisVejqDXTusDIk.jpg",
+    gabarito:"C",
+    alts:[
+      {l:"A", t:"Monóxido de carbono."},
+      {l:"B", t:"Xenônio."},
+      {l:"C", t:"Oxigênio."},
+      {l:"D", t:"Flúor."}
+    ],
+    comentario:"O <strong class=\"inline\">Oxigênio (O₂)</strong>, com cerca de 21% da atmosfera, é o segundo gás mais abundante e essencial para a respiração dos seres vivos."
+  },
+  {
+    num:23, hab:"EF06CI11",
+    enunciado:"Na estratosfera há a concentração elevada de um gás que forma uma camada que filtra os raios ultravioleta (UV) do Sol, nocivos aos seres vivos. Como é conhecida essa camada?",
+    imagem:"https://files.manuscdn.com/user_upload_by_module/session_file/310519663425180148/CmknIJQcHgfmhaet.jpg",
+    gabarito:"D",
+    alts:[
+      {l:"A", t:"Camada de hélio."},
+      {l:"B", t:"Camada de oxigênio."},
+      {l:"C", t:"Camada de subducção."},
+      {l:"D", t:"Camada de ozônio."}
+    ],
+    comentario:"A <strong class=\"inline\">Camada de Ozônio</strong> está localizada na estratosfera e protege a Terra dos raios UV prejudiciais."
+  },
+  {
+    num:24, hab:"EF06CI11",
+    enunciado:"A água é o principal componente do corpo dos seres vivos e está presente em diversos ambientes do planeta Terra. Os 3 (três) estados físicos da água, observados nesses ambientes do planeta, são:",
+    imagem:"https://files.manuscdn.com/user_upload_by_module/session_file/310519663425180148/ydPFafFbQimeFWBt.jpg",
+    gabarito:"A",
+    alts:[
+      {l:"A", t:"Sólido, líquido e gasoso."},
+      {l:"B", t:"Sólido, gasoso e pastoso."},
+      {l:"C", t:"Sólido, líquido e plasma."},
+      {l:"D", t:"Sólido, plasma e gasoso."}
+    ],
+    comentario:"A água existe nos 3 estados: <strong class=\"inline\">sólido</strong> (gelo/neve), <strong class=\"inline\">líquido</strong> (rios e mares) e <strong class=\"inline\">gasoso</strong> (vapor na atmosfera)."
+  },
+  {
+    num:25, hab:"EF04CI02",
+    enunciado:"Bianca derrubou suco em sua blusa favorita. Seu pai lavou a blusa e pendurou-a no varal. Com o passar do tempo, ela secou. Qual é o nome do processo de mudança de estado físico que fez a blusa secar?",
+    imagem:"https://files.manuscdn.com/user_upload_by_module/session_file/310519663425180148/wmkzGbExbsrbeZBm.jpg",
+    gabarito:"D",
+    alts:[
+      {l:"A", t:"Fusão."},
+      {l:"B", t:"Sublimação."},
+      {l:"C", t:"Solidificação."},
+      {l:"D", t:"Vaporização."}
+    ],
+    comentario:"<strong class=\"inline\">Vaporização</strong> é a passagem do estado líquido para o gasoso. A água da blusa evaporou e ela secou."
+  },
+  {
+    num:26, hab:"EF06CI11",
+    enunciado:"O desmatamento e as queimadas na Amazônia trazem diversas consequências ambientais. Uma consequência que ocorre com a retirada da cobertura vegetal no ciclo da água é:",
+    imagem:"https://files.manuscdn.com/user_upload_by_module/session_file/310519663425180148/ImRRoscFKfufWTUd.jpg",
+    gabarito:"A",
+    alts:[
+      {l:"A", t:"Diminuição da evapotranspiração."},
+      {l:"B", t:"Crescimento natural da floresta."},
+      {l:"C", t:"Redução da quantidade de lixo nos rios."},
+      {l:"D", t:"Aumento das chuvas."}
+    ],
+    comentario:"Sem árvores, há menos <strong class=\"inline\">evapotranspiração</strong> (liberação de vapor pelas plantas), reduzindo a formação de nuvens e chuvas."
+  },
+  {
+    num:27, hab:"EF06CI06",
+    enunciado:"O Sol aquece a água, que evapora, forma nuvens e depois cai como chuva, retornando aos rios e mares. Esse processo contínuo é chamado de:",
+    imagem:"https://files.manuscdn.com/user_upload_by_module/session_file/310519663425180148/zIVXEREQDaoVhcYT.jpg",
+    gabarito:"C",
+    alts:[
+      {l:"A", t:"Ciclo do carbono."},
+      {l:"B", t:"Ciclo do nitrogênio."},
+      {l:"C", t:"Ciclo da água."},
+      {l:"D", t:"Ciclo do oxigênio."}
+    ],
+    comentario:"O <strong class=\"inline\">Ciclo da Água</strong> (ou ciclo hidrológico) descreve o movimento contínuo da água entre a superfície terrestre e a atmosfera."
+  },
+  {
+    num:28, hab:"EF06CI12",
+    enunciado:"O processo de desgaste das rochas pela ação da chuva, vento e seres vivos, que contribui para a formação dos solos, é conhecido como:",
+    imagem:"https://files.manuscdn.com/user_upload_by_module/session_file/310519663425180148/mDsXtOptMmGCaIjS.jpg",
+    gabarito:"B",
+    alts:[
+      {l:"A", t:"Adubação."},
+      {l:"B", t:"Intemperismo."},
+      {l:"C", t:"Compostagem."},
+      {l:"D", t:"Evaporação."}
+    ],
+    comentario:"<strong class=\"inline\">Intemperismo</strong> é a desintegração e alteração das rochas por agentes físicos, químicos e biológicos — passo fundamental na formação do solo."
+  },
+  {
+    num:29, hab:"EF06CI12",
+    enunciado:"Nas cidades, a pavimentação das ruas e o acúmulo de lixo dificultam o escoamento da água da chuva. Qual elemento abaixo MAIS contribui para inundações urbanas?",
+    imagem:"https://files.manuscdn.com/user_upload_by_module/session_file/310519663425180148/PEgAZTeKuQNNJUUH.jpg",
+    gabarito:"D",
+    alts:[
+      {l:"A", t:"Ruas limpas."},
+      {l:"B", t:"Praças arborizadas."},
+      {l:"C", t:"Avenidas amplas."},
+      {l:"D", t:"Acúmulo de lixo e entupimento de bueiros."}
+    ],
+    comentario:"O <strong class=\"inline\">lixo acumulado entope bueiros</strong> e drenos, impedindo a água de escoar e causando alagamentos."
+  },
+  {
+    num:30, hab:"EF06CI01",
+    enunciado:"O gás ozônio (O₃) é formado por 3 átomos do mesmo elemento químico (Oxigênio). Substâncias formadas por átomos de apenas um elemento são chamadas de:",
+    imagem:"https://files.manuscdn.com/user_upload_by_module/session_file/310519663425180148/uQCqrYbHDYBaWkrN.png",
+    gabarito:"C",
+    alts:[
+      {l:"A", t:"Substância pura heterogênea."},
+      {l:"B", t:"Mistura pura composta."},
+      {l:"C", t:"Substância pura simples."},
+      {l:"D", t:"Mistura heterogênea."}
+    ],
+    comentario:"<strong class=\"inline\">Substâncias simples</strong> são formadas por átomos de apenas um elemento químico, como O₂ (oxigênio) e O₃ (ozônio)."
+  }
+];
+
+var alunoAtual   = null;
+var respostas    = {};
+var finalizado   = false;
+var switchCount  = 0;
+
+document.addEventListener('visibilitychange', function() {
+  if (!finalizado && alunoAtual && document.hidden) switchCount++;
+});
+
+(function() {
+  var hoje = new Date();
+  var y = hoje.getFullYear();
+  var m = String(hoje.getMonth() + 1).padStart(2, '0');
+  var d = String(hoje.getDate()).padStart(2, '0');
+  document.getElementById('inp-data').value = y + '-' + m + '-' + d;
+})();
+
+function aoMudarTurma() {
+  var turmaId = document.getElementById('sel-turma').value;
+  var selAluno = document.getElementById('sel-aluno');
+  selAluno.innerHTML = '<option value="">— Selecione seu nome —</option>';
+  document.getElementById('inp-num').value   = '';
+  document.getElementById('inp-serie').value = '';
+  document.getElementById('inp-email').value = '';
+  alunoAtual = null;
+  document.getElementById('wrap-btn-finalizar').style.display = 'none';
+
+  if (!turmaId || !TURMAS[turmaId]) return;
+
+  TURMAS[turmaId].forEach(function(a) {
+    var opt = document.createElement('option');
+    opt.value = JSON.stringify(a);
+    opt.textContent = a.num + '. ' + a.nome;
+    selAluno.appendChild(opt);
   });
-  return acertos;
 }
 
-// ── Calcula nota 0–10 ────────────────────────────────────────────────────
-function wms_calcularNota(acertos) {
-  return Math.round((acertos / WMS_TOTAL_QUESTOES) * 10 * 10) / 10;
+function aoSelecionarAluno() {
+  var val = document.getElementById('sel-aluno').value;
+  if (!val) {
+    alunoAtual = null;
+    document.getElementById('inp-num').value   = '';
+    document.getElementById('inp-serie').value = '';
+    document.getElementById('inp-email').value = '';
+    document.getElementById('wrap-btn-finalizar').style.display = 'none';
+    return;
+  }
+  alunoAtual = JSON.parse(val);
+  var turma  = document.getElementById('sel-turma').value;
+
+  document.getElementById('inp-num').value   = alunoAtual.num;
+  document.getElementById('inp-serie').value = '6º Ano ' + turma.replace('6','');
+  document.getElementById('inp-email').value = alunoAtual.email;
+  document.getElementById('wrap-btn-finalizar').style.display = 'block';
 }
 
-// ── Monta HTML do e-mail ─────────────────────────────────────────────────
-function wms_montarEmailHTML(payload, acertos, nota, sheetName) {
-  var turmaLabel = sheetName
-    .replace(" respostas WMS", "")
-    .replace("6oA", "6º Ano A")
-    .replace("6oC", "6º Ano C");
+function renderQuestoes() {
+  var wrap = document.getElementById('questoes-wrap');
+  wrap.innerHTML = '';
 
-  var corNota = Number(nota) >= 5 ? "#27ae60" : "#e74c3c";
-  var emoji   = Number(nota) >= 7 ? "🏆" : Number(nota) >= 5 ? "👍" : "📚";
+  QUESTOES.forEach(function(q, idx) {
+    var card = document.createElement('div');
+    card.className = 'questao-card';
+    card.id = 'card-' + q.num;
+    card.style.animationDelay = (idx * 0.05) + 's';
 
-  var linhas = Object.keys(WMS_GABARITO).map(function(qKey) {
-    var resp    = (payload[qKey] || "—").toString().trim().toUpperCase();
-    var correto = WMS_GABARITO[qKey].toUpperCase();
-    var acertou = resp === correto;
-    var cor     = acertou ? "#27ae60" : "#e74c3c";
-    var icone   = acertou ? "✅" : "❌";
-    return '<tr>' +
-      '<td style="padding:6px 10px;border-bottom:1px solid #eee;">'                                      + WMS_QUESTAO_NOMES[qKey] + '</td>' +
-      '<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;">'   + resp    + '</td>' +
-      '<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;color:' + cor + ';">' + correto + '</td>' +
-      '<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;">'                    + icone   + '</td>' +
-    '</tr>';
-  }).join('');
+    var altsHtml = q.alts.map(function(a) {
+      return '<button class="alt-btn" id="alt-' + q.num + '-' + a.l + '" onclick="responder(' + q.num + ',\'' + a.l + '\')">' +
+             '<span class="letra-badge">' + a.l + '</span>' +
+             '<span>' + a.t + '</span>' +
+             '</button>';
+    }).join('');
 
-  return '<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f6f9;margin:0;padding:20px;">' +
-  '<div style="max-width:580px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1);">' +
-    '<div style="background:#064e9b;color:white;padding:24px 28px;">' +
-      '<div style="font-size:0.75rem;opacity:.75;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">E.E. Profª Wanda MasacagNi de Sá · SEDUC-SP</div>' +
-      '<h1 style="margin:0;font-size:1.2rem;">Resultado da Atividade de Ciências</h1>' +
-      '<div style="font-size:0.85rem;opacity:.85;margin-top:4px;">Revisão – Prova Paulista · ' + turmaLabel + '</div>' +
-    '</div>' +
-    '<div style="padding:24px 28px;">' +
-      '<p style="margin-bottom:6px;">Olá, <strong>' + (payload.studentName || "") + '</strong>! ' + emoji + '</p>' +
-      '<p style="margin-bottom:20px;color:#555;font-size:0.9rem;">Aqui está o resultado da sua atividade de revisão para a Prova Paulista.</p>' +
-      '<div style="background:#f0f5fc;border-radius:10px;padding:18px;text-align:center;margin-bottom:22px;">' +
-        '<div style="font-size:2.8rem;font-weight:900;color:' + corNota + ';">' + acertos + ' / ' + WMS_TOTAL_QUESTOES + '</div>' +
-        '<div style="font-size:1.1rem;font-weight:700;color:' + corNota + ';">Nota: ' + nota + '</div>' +
+    card.innerHTML =
+      '<div class="questao-header">' +
+        '<span class="questao-num">Questão ' + q.num + '</span>' +
+        '<span class="hab-tag">' + q.hab + '</span>' +
       '</div>' +
-      '<h3 style="margin-bottom:10px;color:#064e9b;font-size:0.95rem;">Detalhamento por questão</h3>' +
-      '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">' +
-        '<thead>' +
-          '<tr style="background:#064e9b;color:white;">' +
-            '<th style="padding:8px 10px;text-align:left;">Questão</th>' +
-            '<th style="padding:8px 10px;">Sua resp.</th>' +
-            '<th style="padding:8px 10px;">Gabarito</th>' +
-            '<th style="padding:8px 10px;">Resultado</th>' +
-          '</tr>' +
-        '</thead>' +
-        '<tbody>' + linhas + '</tbody>' +
-      '</table>' +
-      (payload.switchCount && Number(payload.switchCount) > 0
-        ? '<p style="margin-top:16px;font-size:0.78rem;color:#e67e22;">⚠️ Detectamos ' + payload.switchCount + ' troca(s) de aba durante a atividade.</p>'
-        : '') +
-      '<p style="margin-top:20px;font-size:0.82rem;color:#888;">Data: ' + (payload.date || "") + ' · Nº ' + (payload.studentNumber || "") + '</p>' +
-    '</div>' +
-    '<div style="background:#f0f5fc;padding:14px 28px;text-align:center;font-size:0.75rem;color:#666;">' +
-      'E.E. Profª Wanda MasacagNi de Sá · SEDUC-SP · Ciências' +
-    '</div>' +
-  '</div></body></html>';
+      '<div class="questao-body">' +
+        '<p class="enunciado">' + q.enunciado + '</p>' +
+        '<img src="' + q.imagem + '" class="questao-img" alt="Imagem questão ' + q.num + '" loading="lazy">' +
+        '<div class="alternativas">' + altsHtml + '</div>' +
+        '<div class="feedback" id="fb-' + q.num + '"></div>' +
+      '</div>';
+
+    wrap.appendChild(card);
+  });
 }
 
-// ── Envia e-mail ao aluno ────────────────────────────────────────────────
-function wms_enviarEmail(payload, acertos, nota, sheetName) {
-  var email = (payload.studentEmail || "").toString().trim();
-  if (!email) return;
+function responder(qNum, letra) {
+  if (finalizado) return;
+  respostas[qNum] = letra;
 
-  var turmaLabel = sheetName
-    .replace(" respostas WMS", "")
-    .replace("6oA", "6º Ano A")
-    .replace("6oC", "6º Ano C");
-
-  var assunto  = "[WMS] Resultado – Revisão Ciências " + turmaLabel + " – " + (payload.studentName || "");
-  var htmlBody = wms_montarEmailHTML(payload, acertos, nota, sheetName);
-
-  try {
-    MailApp.sendEmail({ to: email, subject: assunto, htmlBody: htmlBody });
-  } catch (e) {
-    Logger.log("Erro ao enviar e-mail para " + email + ": " + e.toString());
-  }
+  var q = QUESTOES.find(function(x) { return x.num === qNum; });
+  q.alts.forEach(function(a) {
+    var btn = document.getElementById('alt-' + qNum + '-' + a.l);
+    btn.classList.remove('selecionada');
+  });
+  document.getElementById('alt-' + qNum + '-' + letra).classList.add('selecionada');
 }
 
-// ── Cria aba com cabeçalho se não existir ────────────────────────────────
-function wms_getOrCreate(ss, name) {
-  var sheet = ss.getSheetByName(name);
-  if (!sheet) {
-    sheet = ss.insertSheet(name);
-    var headers = [
-      "Data/Hora", "Nome", "Nº", "Série", "Data", "E-mail",
-      "Q21", "Q22", "Q23", "Q24", "Q25", "Q26", "Q27", "Q28", "Q29", "Q30",
-      "Acertos", "Nota (0-10)", "Saídas de aba"
-    ];
-    sheet.appendRow(headers);
-
-    var h = sheet.getRange(1, 1, 1, headers.length);
-    h.setBackground("#064e9b")
-     .setFontColor("#ffffff")
-     .setFontWeight("bold")
-     .setHorizontalAlignment("center")
-     .setVerticalAlignment("middle");
-
-    sheet.setRowHeight(1, 36);
-    sheet.setFrozenRows(1);
-    sheet.setColumnWidth(1, 155);
-    sheet.setColumnWidth(2, 250);
-    sheet.setColumnWidth(3, 45);
-    sheet.setColumnWidth(4, 100);
-    sheet.setColumnWidth(5, 90);
-    sheet.setColumnWidth(6, 200);
-    for (var c = 7; c <= 16; c++) sheet.setColumnWidth(c, 52);
-    sheet.setColumnWidth(17, 70);
-    sheet.setColumnWidth(18, 85);
-    sheet.setColumnWidth(19, 90);
-  }
-  return sheet;
+function mostrarToast(msg, dur) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, dur || 3000);
 }
 
-// ── Formata a linha recém gravada ────────────────────────────────────────
-function wms_applyFormatting(sheet, rowIndex, payload, acertos, nota) {
-  for (var i = 1; i <= 10; i++) {
-    var ans  = (payload["q" + i] || "").toString().trim().toUpperCase();
-    var ok   = (WMS_GABARITO["q" + i] || "").toUpperCase();
-    if (!ans) continue;
-    var cell = sheet.getRange(rowIndex, 6 + i);
-    cell.setHorizontalAlignment("center").setFontWeight("bold");
-    if (ok) {
-      cell.setBackground(ans === ok ? "#2980b9" : "#e74c3c")
-          .setFontColor("#ffffff");
-    }
+function finalizarAtividade() {
+  var turma = document.getElementById('sel-turma').value;
+  if (!turma) {
+    mostrarToast('⚠️ Selecione a turma antes de enviar!');
+    window.scrollTo({top: 0, behavior: 'smooth'});
+    return;
   }
 
-  sheet.getRange(rowIndex, 17)
-       .setHorizontalAlignment("center")
-       .setFontWeight("bold");
-
-  sheet.getRange(rowIndex, 18)
-       .setHorizontalAlignment("center")
-       .setFontWeight("bold")
-       .setBackground(Number(nota) >= 5 ? "#27ae60" : "#e74c3c")
-       .setFontColor("#ffffff");
-
-  var saidas = Number(payload.switchCount) || 0;
-  if (saidas > 0) {
-    sheet.getRange(rowIndex, 19)
-         .setBackground("#f39c12")
-         .setFontColor("#ffffff")
-         .setFontWeight("bold")
-         .setHorizontalAlignment("center");
+  if (!alunoAtual) {
+    mostrarToast('⚠️ Selecione seu nome antes de enviar!');
+    window.scrollTo({top: 0, behavior: 'smooth'});
+    return;
   }
-}
 
-// ── Saída JSONP ──────────────────────────────────────────────────────────
-function wms_jsonpOut(callback, obj) {
-  var body = callback
-    ? callback + "(" + JSON.stringify(obj) + ");"
-    : JSON.stringify(obj);
-  return ContentService.createTextOutput(body)
-                       .setMimeType(ContentService.MimeType.JAVASCRIPT);
-}
+  if (!SCRIPT_URL || SCRIPT_URL === 'COLE_AQUI_A_URL_DO_WEB_APP') {
+    mostrarToast('⚠️ URL do servidor não configurada. Contate o professor.', 5000);
+    console.error('SCRIPT_URL não foi configurada.');
+    return;
+  }
 
-// ── Ponto de entrada (GET) ───────────────────────────────────────────────
-function doGet(e) {
-  var callback = "";
-  try {
-    callback = (e && e.parameter && e.parameter.callback) ? e.parameter.callback : "";
+  var naoRespondidas = QUESTOES.filter(function(q) { return !respostas[q.num]; });
+  if (naoRespondidas.length > 0) {
+    var nums = naoRespondidas.map(function(q) { return 'Q' + q.num; }).join(', ');
+    mostrarToast('⚠️ Responda ainda: ' + nums, 4000);
+    var primeiraCard = document.getElementById('card-' + naoRespondidas[0].num);
+    if (primeiraCard) primeiraCard.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
 
-    if (!e || !e.parameter || !e.parameter.data) {
-      return wms_jsonpOut(callback, { status: "online", msg: "WMS Ciências Script ativo." });
-    }
+  finalizado = true;
+  var btnFinalizar = document.getElementById('btn-finalizar');
+  btnFinalizar.disabled = true;
+  btnFinalizar.textContent = '⏳ Enviando...';
 
-    var bytes   = Utilities.base64Decode(e.parameter.data, Utilities.Charset.UTF_8);
-    var json    = Utilities.newBlob(bytes).getDataAsString();
-    var payload = JSON.parse(json);
+  var acertos = 0;
+  QUESTOES.forEach(function(q) {
+    var resp   = respostas[q.num];
+    var acertou = resp === q.gabarito;
+    if (acertou) acertos++;
 
-    var sheetName = wms_normalizeSheetName(payload.sheetName || payload.turma || "");
+    q.alts.forEach(function(a) {
+      var btn = document.getElementById('alt-' + q.num + '-' + a.l);
+      btn.classList.add('bloqueada');
+      btn.classList.remove('selecionada');
+      btn.onclick = null;
 
-    var acertos = wms_calcularAcertos(payload);
-    var nota    = wms_calcularNota(acertos);
-
-    var ss    = SpreadsheetApp.openById(WMS_SPREADSHEET_ID);
-    var sheet = wms_getOrCreate(ss, sheetName);
-
-    var now = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-    var row = [
-      now,
-      (payload.studentName   || "").toString().trim(),
-      (payload.studentNumber || "").toString().trim(),
-      (payload.studentGrade  || "").toString().trim(),
-      (payload.date          || "").toString().trim(),
-      (payload.studentEmail  || "").toString().trim()
-    ];
-
-    for (var i = 1; i <= 10; i++) {
-      row.push(
-        (payload["q" + i] !== undefined && payload["q" + i] !== null)
-          ? payload["q" + i].toString().trim().toUpperCase()
-          : ""
-      );
-    }
-
-    row.push(acertos);
-    row.push(nota);
-    row.push(Number(payload.switchCount) || 0);
-
-    sheet.appendRow(row);
-    var lastRow = sheet.getLastRow();
-
-    wms_applyFormatting(sheet, lastRow, payload, acertos, nota);
-
-    wms_enviarEmail(payload, acertos, nota, sheetName);
-
-    return wms_jsonpOut(callback, {
-      status:  "ok",
-      sheet:   sheetName,
-      row:     lastRow,
-      acertos: acertos,
-      nota:    nota
+      if (a.l === q.gabarito) {
+        btn.classList.add(resp === a.l ? 'correta' : 'gabarito-revelado');
+      } else if (resp === a.l) {
+        btn.classList.add('errada');
+      }
     });
 
-  } catch (err) {
-    Logger.log("ERRO doGet: " + err.toString() + "\n" + (err.stack || ""));
-    return wms_jsonpOut(callback, {
-      status:  "error",
-      message: err.toString(),
-      stack:   err.stack || ""
-    });
+    var fb = document.getElementById('fb-' + q.num);
+    fb.style.display = 'block';
+    if (acertou) {
+      fb.className = 'feedback certa';
+      fb.innerHTML = '<strong>✅ Correto!</strong> ' + q.comentario;
+    } else {
+      fb.className = 'feedback errada';
+      fb.innerHTML = '<strong>❌ Incorreto.</strong> A resposta correta é <strong class="inline">' + q.gabarito + '</strong>. ' + q.comentario;
+    }
+  });
+
+  var nota    = Math.round((acertos / QUESTOES.length) * 10 * 10) / 10;
+  var dataVal = document.getElementById('inp-data').value;
+  var dataFmt = dataVal ? dataVal.split('-').reverse().join('/') : '';
+
+  exibirResultado(acertos, nota);
+
+  enviarParaScript({
+    sheetName:     '6o' + turma.replace('6','') + ' respostas WMS',
+    studentName:   alunoAtual.nome,
+    studentNumber: alunoAtual.num,
+    studentGrade:  '6º Ano ' + turma.replace('6',''),
+    date:          dataFmt,
+    studentEmail:  alunoAtual.email,
+    q1:  respostas[21] || '',
+    q2:  respostas[22] || '',
+    q3:  respostas[23] || '',
+    q4:  respostas[24] || '',
+    q5:  respostas[25] || '',
+    q6:  respostas[26] || '',
+    q7:  respostas[27] || '',
+    q8:  respostas[28] || '',
+    q9:  respostas[29] || '',
+    q10: respostas[30] || '',
+    acertos:     acertos,
+    nota:        nota,
+    switchCount: switchCount
+  });
+}
+
+function exibirResultado(acertos, nota) {
+  var total = QUESTOES.length;
+  var pct   = acertos / total;
+
+  document.getElementById('res-aluno').textContent =
+    'Aluno(a): ' + alunoAtual.nome + ' — ' + document.getElementById('inp-serie').value;
+  document.getElementById('res-nota').textContent = acertos + ' / ' + total + ' — Nota: ' + nota;
+
+  var emoji, msg;
+  if (pct >= .9)      { emoji = '🏆'; msg = 'Excelente! Resultado fantástico!'; }
+  else if (pct >= .7) { emoji = '🎉'; msg = 'Muito bom! Você está no caminho certo.'; }
+  else if (pct >= .5) { emoji = '👍'; msg = 'Bom desempenho! Continue estudando para melhorar.'; }
+  else                { emoji = '📚'; msg = 'Continue estudando! A revisão vai te ajudar na Prova Paulista.'; }
+
+  document.getElementById('res-emoji').textContent    = emoji;
+  document.getElementById('res-msg').textContent      = msg;
+
+  document.getElementById('wrap-btn-finalizar').style.display = 'none';
+  var telaRes = document.getElementById('tela-resultado');
+  telaRes.style.display = 'block';
+  telaRes.scrollIntoView({behavior: 'smooth'});
+}
+
+function enviarParaScript(payload) {
+  var statusEl = document.getElementById('res-email-status');
+  var btnFinal = document.getElementById('btn-finalizar');
+
+  statusEl.style.display    = 'block';
+  statusEl.style.background = '';
+  statusEl.style.color      = '';
+  statusEl.textContent      = '📤 Enviando resultados...';
+
+  var json = JSON.stringify(payload);
+
+  var b64;
+  try {
+    b64 = btoa(unescape(encodeURIComponent(json)));
+  } catch(e) {
+    statusEl.style.background = '#fde8e8';
+    statusEl.style.color      = '#6b1010';
+    statusEl.textContent      = '❌ Erro ao codificar dados. Contate o professor.';
+    btnFinal.textContent      = '⛔ Enviado (erro local)';
+    return;
   }
+
+  confirmarViaJsonp(b64, statusEl, btnFinal, payload);
 }
 
-// ════════════════════════════════════════════════════════════════════════
-//  TESTES MANUAIS
-// ════════════════════════════════════════════════════════════════════════
+function confirmarViaJsonp(b64, statusEl, btnFinal, payload) {
+  var cbName = 'cb_' + Date.now();
+  var url    = SCRIPT_URL + '?callback=' + cbName + '&data=' + encodeURIComponent(b64);
+  var done   = false;
 
-function wms_testeManual_6oA() {
-  var fake = {
-    parameter: {
-      callback: "cb",
-      data: Utilities.base64Encode(JSON.stringify({
-        sheetName:     "6oA respostas WMS",
-        studentName:   "ALUNO TESTE A",
-        studentNumber: "1",
-        studentGrade:  "6º Ano A",
-        date:          "09/06/2026",
-        studentEmail:  "00001254829957sp@al.educacao.sp.gov.br",
-        q1:"B", q2:"C", q3:"D", q4:"A", q5:"D",
-        q6:"A", q7:"C", q8:"B", q9:"D", q10:"C",
-        switchCount: 0
-      }), Utilities.Charset.UTF_8)
+  window[cbName] = function(resp) {
+    done = true;
+    delete window[cbName];
+    var tag = document.getElementById('jsonp-' + cbName);
+    if (tag) tag.remove();
+
+    if (resp && resp.status === 'ok') {
+      statusEl.style.background = '#d4f5e2';
+      statusEl.style.color      = '#0a3d22';
+      statusEl.textContent      = '✅ Resultado registrado! E-mail enviado para ' + payload.studentEmail;
+      btnFinal.textContent      = '✅ Atividade enviada';
+    } else {
+      statusEl.style.background = '#fde8e8';
+      statusEl.style.color      = '#6b1010';
+      statusEl.textContent      = '⚠️ Erro no servidor. Contate o professor.';
+      btnFinal.textContent      = '⛔ Envio concluído (erro no servidor)';
+      console.error('Apps Script retornou:', resp);
     }
   };
-  Logger.log(doGet(fake).getContent());
-}
 
-function wms_testeManual_6oC() {
-  var fake = {
-    parameter: {
-      callback: "cb",
-      data: Utilities.base64Encode(JSON.stringify({
-        sheetName:     "6oC respostas WMS",
-        studentName:   "ALUNO TESTE C",
-        studentNumber: "1",
-        studentGrade:  "6º Ano C",
-        date:          "09/06/2026",
-        studentEmail:  "000121488538Xsp@al.educacao.sp.gov.br",
-        q1:"B", q2:"C", q3:"D", q4:"A", q5:"D",
-        q6:"A", q7:"C", q8:"B", q9:"D", q10:"C",
-        switchCount: 0
-      }), Utilities.Charset.UTF_8)
+  var tag   = document.createElement('script');
+  tag.id    = 'jsonp-' + cbName;
+  tag.src   = url;
+  tag.onerror = function() {
+    if (!done) {
+      done = true;
+      delete window[cbName];
+      statusEl.style.background = '#fff3cd';
+      statusEl.style.color      = '#856404';
+      statusEl.textContent      = '⚠️ Envio realizado, mas não foi possível confirmar. Contate o professor.';
+      btnFinal.textContent      = '⛔ Envio concluído';
+      console.warn('JSONP onerror — possível bloqueio institucional SEDUC-SP.');
     }
   };
-  Logger.log(doGet(fake).getContent());
+  document.head.appendChild(tag);
+
+  setTimeout(function() {
+    if (!done) {
+      done = true;
+      if (window[cbName]) delete window[cbName];
+      statusEl.style.background = '#fff3cd';
+      statusEl.style.color      = '#856404';
+      statusEl.textContent      = '⏱️ Servidor demorou a responder. Contate o professor para confirmar.';
+      btnFinal.textContent      = '⛔ Envio concluído (timeout)';
+    }
+  }, 25000);
 }
 
-function wms_testeEmail() {
-  var payload = {
-    studentName:   "TESTE DE E-MAIL",
-    studentNumber: "99",
-    studentGrade:  "6º Ano A",
-    date:          "09/06/2026",
-    studentEmail:  "SEU_EMAIL_AQUI@gmail.com",
-    q1:"B", q2:"C", q3:"D", q4:"A", q5:"D",
-    q6:"A", q7:"C", q8:"B", q9:"D", q10:"C",
-    switchCount: 0
-  };
-  var acertos = wms_calcularAcertos(payload);
-  var nota    = wms_calcularNota(acertos);
-  wms_enviarEmail(payload, acertos, nota, "6oA respostas WMS");
-  Logger.log("E-mail enviado. Acertos: " + acertos + " | Nota: " + nota);
-}
+renderQuestoes();
+</script>
+</body>
+</html>
