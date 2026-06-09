@@ -430,7 +430,7 @@ body {
   <div class="topo-inner">
     <div class="topo-logo">🏫</div>
     <div class="topo-texto">
-      <div class="topo-escola-nome">E.E. PROFª WANDA MASACAGNI DE SÁ</div>
+      <div class="topo-escola-nome">E.E. PROFª WANDA MASCAGNI DE SÁ</div>
     </div>
   </div>
 </header>
@@ -509,10 +509,8 @@ body {
 <script>
 'use strict';
 
-/* ── ⚠️  SUBSTITUA PELA URL DO SEU WEB APP PUBLICADO NO APPS SCRIPT ──── */
 var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyERmYA0s2pKTrz47WrXoP52JVcfZL0pnJwyTwBdC_rpfzi5e3xx24pXfZTSUnAEuZB/exec";
 
-/* ── DADOS DOS ALUNOS ─────────────────────────────────────────────────── */
 var TURMAS = {
   "6A": [
     { num:1,  nome:"ALICIA DE SOUZA SIQUEIRA",              email:"00001254829957sp@al.educacao.sp.gov.br" },
@@ -571,7 +569,7 @@ var TURMAS = {
   ]
 };
 
-/* ── BANCO DE QUESTÕES ─────────────────────────────────────────────────── */
+/* ── BANCO DE QUESTÕES — num: 1–10 (WMS) ─────────────────────────────── */
 var QUESTOES = [
   {
     num:1, hab:"EF06CI11",
@@ -829,7 +827,6 @@ function finalizarAtividade() {
 
   if (!SCRIPT_URL || SCRIPT_URL === 'COLE_AQUI_A_URL_DO_WEB_APP') {
     mostrarToast('⚠️ URL do servidor não configurada. Contate o professor.', 5000);
-    console.error('SCRIPT_URL não foi configurada.');
     return;
   }
 
@@ -849,7 +846,7 @@ function finalizarAtividade() {
 
   var acertos = 0;
   QUESTOES.forEach(function(q) {
-    var resp   = respostas[q.num];
+    var resp    = respostas[q.num];
     var acertou = resp === q.gabarito;
     if (acertou) acertos++;
 
@@ -883,6 +880,7 @@ function finalizarAtividade() {
 
   exibirResultado(acertos, nota);
 
+  /* ✅ CORRIGIDO: respostas[1..10] — chaves corretas para q.num 1–10 (WMS) */
   enviarParaScript({
     sheetName:     '6o' + turma.replace('6','') + ' respostas WMS',
     studentName:   alunoAtual.nome,
@@ -890,16 +888,16 @@ function finalizarAtividade() {
     studentGrade:  '6º Ano ' + turma.replace('6',''),
     date:          dataFmt,
     studentEmail:  alunoAtual.email,
-    q1:  respostas[21] || '',
-    q2:  respostas[22] || '',
-    q3:  respostas[23] || '',
-    q4:  respostas[24] || '',
-    q5:  respostas[25] || '',
-    q6:  respostas[26] || '',
-    q7:  respostas[27] || '',
-    q8:  respostas[28] || '',
-    q9:  respostas[29] || '',
-    q10: respostas[30] || '',
+    q1:  respostas[1]  || '',
+    q2:  respostas[2]  || '',
+    q3:  respostas[3]  || '',
+    q4:  respostas[4]  || '',
+    q5:  respostas[5]  || '',
+    q6:  respostas[6]  || '',
+    q7:  respostas[7]  || '',
+    q8:  respostas[8]  || '',
+    q9:  respostas[9]  || '',
+    q10: respostas[10] || '',
     acertos:     acertos,
     nota:        nota,
     switchCount: switchCount
@@ -920,8 +918,8 @@ function exibirResultado(acertos, nota) {
   else if (pct >= .5) { emoji = '👍'; msg = 'Bom desempenho! Continue estudando para melhorar.'; }
   else                { emoji = '📚'; msg = 'Continue estudando! A revisão vai te ajudar na Prova Paulista.'; }
 
-  document.getElementById('res-emoji').textContent    = emoji;
-  document.getElementById('res-msg').textContent      = msg;
+  document.getElementById('res-emoji').textContent = emoji;
+  document.getElementById('res-msg').textContent   = msg;
 
   document.getElementById('wrap-btn-finalizar').style.display = 'none';
   var telaRes = document.getElementById('tela-resultado');
@@ -939,7 +937,6 @@ function enviarParaScript(payload) {
   statusEl.textContent      = '📤 Enviando resultados...';
 
   var json = JSON.stringify(payload);
-
   var b64;
   try {
     b64 = btoa(unescape(encodeURIComponent(json)));
